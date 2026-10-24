@@ -1,0 +1,667 @@
+
+/* =========================================
+   InvoiceAI — Clean Settings Layout
+========================================= */
+
+.settings-page,
+.settings-page * {
+    box-sizing: border-box;
+}
+
+.settings-page {
+    --settings-bg: #080b14;
+    --settings-panel: #0f1523;
+    --settings-panel-secondary: #111a2b;
+    --settings-border: #202b40;
+    --settings-heading: #f4f7ff;
+    --settings-text: #dbe4f4;
+    --settings-muted: #8998b3;
+    --settings-input: #0b1120;
+    --settings-blue: #579bff;
+    --settings-danger: #ff707d;
+
+    min-height: 100vh;
+    background: var(--settings-bg);
+    color: var(--settings-text);
+    font-family: Inter, "Segoe UI", sans-serif;
+    line-height: 1.5;
+}
+
+.settings-page.light-theme {
+    --settings-bg: #f5f7fb;
+    --settings-panel: #ffffff;
+    --settings-panel-secondary: #f8faff;
+    --settings-border: #e1e7f0;
+    --settings-heading: #17233c;
+    --settings-text: #334155;
+    --settings-muted: #69778f;
+    --settings-input: #ffffff;
+    --settings-blue: #3979e8;
+    --settings-danger: #d93648;
+}
+
+.settings-page button,
+.settings-page input {
+    font: inherit;
+}
+
+.settings-page button {
+    cursor: pointer;
+}
+
+.settings-page button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.settings-page a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.settings-page input:focus-visible,
+.settings-page button:focus-visible {
+    outline: 2px solid var(--settings-blue);
+    outline-offset: 3px;
+}
+
+/* Top navigation */
+
+.settings-topbar {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 12px 5%;
+    border-bottom: 1px solid var(--settings-border);
+    background: var(--settings-panel);
+}
+
+.settings-back,
+.settings-topbar-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.settings-back {
+    color: var(--settings-muted);
+}
+
+.settings-back:hover {
+    color: var(--settings-blue);
+}
+
+.settings-topbar-title {
+    color: var(--settings-heading);
+}
+
+.settings-topbar-title svg {
+    color: #8585ff;
+}
+
+.settings-theme-button,
+.settings-secondary-button {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--settings-border);
+    border-radius: 8px;
+    background: var(--settings-panel-secondary);
+    color: var(--settings-text);
+    font-size: 12px;
+    font-weight: 600;
+    transition: border-color 0.2s ease;
+}
+
+.settings-theme-button:hover,
+.settings-secondary-button:hover {
+    border-color: var(--settings-blue);
+}
+
+/* Main content */
+
+.settings-content {
+    width: min(100% - 40px, 900px);
+    margin: 0 auto;
+    padding: 38px 0 32px;
+}
+
+.settings-intro {
+    margin-bottom: 28px;
+}
+
+.settings-eyebrow {
+    color: var(--settings-blue);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.3px;
+}
+
+.settings-intro h1 {
+    margin: 8px 0 6px;
+    color: var(--settings-heading);
+    font-size: 30px;
+    font-weight: 750;
+    letter-spacing: -0.7px;
+}
+
+.settings-intro > p {
+    margin: 0;
+    color: var(--settings-muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Cards */
+
+.settings-card {
+    min-width: 0;
+    padding: 24px 26px;
+    margin-bottom: 20px;
+    border: 1px solid var(--settings-border);
+    border-radius: 12px;
+    background: var(--settings-panel);
+    box-shadow: none;
+}
+
+.settings-form .settings-card {
+    margin-bottom: 0;
+}
+
+.settings-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.settings-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--settings-border);
+    border-radius: 9px;
+    background: var(--settings-panel-secondary);
+    color: var(--settings-blue);
+}
+
+.settings-card-heading h2 {
+    margin: 0;
+    color: var(--settings-heading);
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.settings-card-heading p {
+    margin: 4px 0 0;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* Form fields */
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 17px;
+}
+
+.settings-field > span {
+    color: var(--settings-text);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.settings-field input {
+    width: 100%;
+    max-width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--settings-border);
+    border-radius: 8px;
+    outline: none;
+    background: var(--settings-input);
+    color: var(--settings-text);
+    font-size: 13px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-field input:focus {
+    border-color: var(--settings-blue);
+    box-shadow: 0 0 0 3px rgba(87, 155, 255, 0.09);
+}
+
+.settings-field input::placeholder {
+    color: var(--settings-muted);
+}
+
+.settings-field small {
+    color: var(--settings-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+/* Preferences */
+
+.settings-preference-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.settings-preference-row strong {
+    color: var(--settings-heading);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.settings-preference-row p {
+    margin: 4px 0 0;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.settings-toggle-row {
+    cursor: pointer;
+}
+
+.settings-toggle-row input {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    accent-color: var(--settings-blue);
+    cursor: pointer;
+}
+
+/* Status messages */
+
+.settings-success,
+.settings-error {
+    margin: 0 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.settings-success {
+    color: #28c995;
+}
+
+.settings-error {
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 8px;
+    background: rgba(255, 80, 80, 0.07);
+    color: var(--settings-danger);
+}
+
+/* Buttons */
+
+.settings-save-area {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.settings-save-button {
+    min-height: 39px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 15px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: #3979e8;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.2s ease;
+}
+
+.settings-save-button:hover {
+    background: #2f6bd3;
+}
+
+.settings-account-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.settings-account-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.settings-danger-button {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid rgba(255, 112, 125, 0.35);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--settings-danger);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.settings-danger-button:hover {
+    background: rgba(255, 112, 125, 0.08);
+}
+
+.settings-save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Existing security helpers */
+
+.settings-security-note {
+    padding: 13px 14px;
+    border: 1px solid var(--settings-border);
+    border-radius: 8px;
+    background: var(--settings-panel-secondary);
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.settings-action-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--settings-border);
+}
+
+.settings-action-row:first-child {
+    padding-top: 0;
+}
+
+.settings-action-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.settings-action-copy {
+    min-width: 0;
+}
+
+.settings-action-copy strong {
+    display: block;
+    color: var(--settings-heading);
+    font-size: 13px;
+}
+
+.settings-action-copy p {
+    margin: 4px 0 0;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.settings-password-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-password-wrap input {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-password-toggle {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--settings-border);
+    border-radius: 8px;
+    background: var(--settings-panel-secondary);
+    color: var(--settings-text);
+}
+
+/* Confirmation dialog helpers */
+
+.settings-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.settings-dialog {
+    width: 100%;
+    max-width: 420px;
+    padding: 24px;
+    border: 1px solid var(--settings-border);
+    border-radius: 12px;
+    background: var(--settings-panel);
+}
+
+.settings-dialog h3 {
+    margin: 0;
+    color: var(--settings-heading);
+    font-size: 17px;
+}
+
+.settings-dialog p {
+    margin: 10px 0 20px;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.settings-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Footer */
+
+.settings-footer {
+    padding-top: 18px;
+    color: var(--settings-muted);
+    font-size: 11px;
+    line-height: 1.7;
+    text-align: center;
+}
+
+/* Responsive */
+
+@media (max-width: 760px) {
+    .settings-topbar {
+        padding: 12px 20px;
+    }
+
+    .settings-content {
+        width: calc(100% - 32px);
+        padding-top: 28px;
+    }
+
+    .settings-card {
+        padding: 21px;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-topbar {
+        gap: 10px;
+        padding: 12px 14px;
+    }
+
+    .settings-back,
+    .settings-topbar-title {
+        font-size: 12px;
+    }
+
+    .settings-content {
+        width: calc(100% - 24px);
+        padding-top: 24px;
+    }
+
+    .settings-intro h1 {
+        font-size: 27px;
+    }
+
+    .settings-card {
+        padding: 17px 14px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+    }
+
+    .settings-card-heading {
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .settings-icon {
+        width: 35px;
+        height: 35px;
+    }
+
+    .settings-preference-row,
+    .settings-action-row {
+        gap: 12px;
+    }
+
+    .settings-preference-row > button,
+    .settings-action-row > button {
+        flex-shrink: 0;
+    }
+
+    .settings-save-area {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .settings-save-button {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .settings-page,
+    .settings-page *,
+    .settings-page *::before,
+    .settings-page *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
+/* Settings page: improve spacing between all sections */
+
+.settings-content > .settings-form {
+    margin-bottom: 22px;
+}
+
+.settings-content > .settings-form + .settings-card {
+    margin-top: 0;
+}
+
+/* Give the password form more breathing room */
+.settings-card > form .settings-field:first-child {
+    margin-top: 0;
+}
+
+.settings-card > form .settings-field {
+    margin-top: 20px;
+}
+
+.settings-card > form .settings-save-button {
+    margin-top: 4px;
+}
+
+/* Keep a consistent gap between every standalone card */
+.settings-content > .settings-card {
+    margin-bottom: 22px;
+}
+
+.settings-content > .settings-card:last-of-type {
+    margin-bottom: 0;
+}
+
+/* Separate the profile and password sections clearly */
+.settings-content > .settings-form + .settings-card {
+    margin-top: 0;
+}
+
+/* Align Update Password button with Save Profile */
+.settings-card > form:has(input[autocomplete="current-password"]) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.settings-card > form:has(input[autocomplete="current-password"]) .settings-field {
+    width: 100%;
+}
+
+.settings-card > form:has(input[autocomplete="current-password"]) .settings-save-button {
+    align-self: flex-end;
+    margin-top: 4px;
+}
+
+/* Add breathing room above the Update Password button */
+.settings-card > form:has(input[autocomplete="current-password"]) .settings-save-button {
+    margin-top: 16px;
+}
+
+/* Remove the centered Settings title from the top navigation */
+.settings-topbar {
+    grid-template-columns: 1fr auto;
+}
+
+.settings-topbar-title {
+    display: none;
+}
+
+/* Improve spacing in the Account and Security section */
+.settings-card .settings-field {
+    margin-bottom: 20px;
+}
+
+.settings-card .settings-danger-button {
+    margin-top: 8px;
+}

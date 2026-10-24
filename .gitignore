@@ -1,0 +1,21 @@
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+__pycache__/
+.venv/
+venv/
+
+# Python generated files
+*.pyc
+*.pyo
+
+# Uploaded invoice files
+backend/uploads/*
+!backend/uploads/.gitkeep

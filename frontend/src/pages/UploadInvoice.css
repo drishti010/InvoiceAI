@@ -1,0 +1,578 @@
+
+.upload-invoice-page {
+    min-height: 100vh;
+    color: #f4f7ff;
+    background:
+        radial-gradient(ellipse at 15% 0%, rgba(57, 105, 230, 0.14), transparent 40%),
+        #080c18;
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.upload-invoice-page * {
+    box-sizing: border-box;
+}
+
+.upload-invoice-header {
+    height: 76px;
+    padding: 0 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.13);
+    background: rgba(12, 18, 34, 0.88);
+}
+
+.upload-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: #9aadd0;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.upload-back-link:hover {
+    color: #fff;
+}
+
+.upload-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+}
+
+.upload-brand-icon {
+    width: 39px;
+    height: 39px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(135deg, #2196ff, #6951f5);
+}
+
+.upload-brand-accent {
+    color: #9286ff;
+}
+
+.upload-invoice-main {
+    width: min(760px, 90%);
+    margin: 0 auto;
+    padding: 65px 0;
+}
+
+.upload-eyebrow {
+    margin: 0 0 12px;
+    color: #62b6ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+.upload-invoice-main h1 {
+    margin: 0;
+    font-size: clamp(30px, 5vw, 42px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+}
+
+.upload-description {
+    max-width: 570px;
+    margin: 12px 0 30px;
+    color: #91a3c3;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.upload-card {
+    padding: 25px;
+    border: 1px solid #283653;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #121b30, #0e1526);
+    box-shadow: 0 22px 65px rgba(0, 0, 0, 0.2);
+}
+
+.upload-dropzone {
+    min-height: 255px;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 13px;
+    border: 1px dashed #405579;
+    border-radius: 14px;
+    background: rgba(9, 16, 31, 0.65);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.upload-dropzone:hover {
+    border-color: #659bff;
+    background: rgba(35, 62, 111, 0.12);
+}
+
+.upload-file-icon {
+    width: 61px;
+    height: 61px;
+    display: grid;
+    place-items: center;
+    color: #77baff;
+    background: rgba(59, 130, 246, 0.14);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: 17px;
+}
+
+.upload-dropzone strong {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    color: #eef3ff;
+    font-size: 15px;
+}
+
+.upload-file-hint {
+    color: #8294b3;
+    font-size: 12px;
+}
+
+.upload-choose-button {
+    margin-top: 4px;
+    padding: 10px 17px;
+    color: #c3d9ff;
+    background: #172642;
+    border: 1px solid #344c75;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.upload-dropzone input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.upload-submit-button {
+    width: 100%;
+    min-height: 49px;
+    margin-top: 22px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 9px;
+    color: white;
+    background: linear-gradient(105deg, #259cff, #6552f5);
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 750;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(67, 101, 255, 0.17);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.upload-submit-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.upload-submit-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.upload-security-note {
+    margin: 17px 0 0;
+    color: #7486a5;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.upload-message {
+    margin-top: 18px;
+    padding: 13px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.upload-message-error {
+    color: #ff9ba5;
+    background: rgba(255, 80, 100, 0.09);
+    border: 1px solid rgba(255, 100, 120, 0.2);
+}
+
+.upload-message-success {
+    color: #6ce5b6;
+    background: rgba(46, 213, 160, 0.08);
+    border: 1px solid rgba(46, 213, 160, 0.2);
+}
+
+.upload-message svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.upload-result-details {
+    margin-top: 15px;
+    padding: 5px 15px;
+    background: rgba(8, 14, 27, 0.65);
+    border: 1px solid #263550;
+    border-radius: 10px;
+}
+
+.upload-result-details p {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 11px 0;
+    margin: 0;
+    border-bottom: 1px solid #202d43;
+    font-size: 12px;
+}
+
+.upload-result-details p:last-child {
+    border-bottom: none;
+}
+
+.upload-result-details p span {
+    color: #8b9dbb;
+}
+
+.upload-result-details p strong {
+    color: #eef3ff;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.upload-view-invoices {
+    display: inline-flex;
+    margin-top: 17px;
+    color: #8cb9ff;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.upload-view-invoices:hover {
+    color: #fff;
+}
+
+.upload-spinner {
+    animation: upload-spin 1s linear infinite;
+}
+
+@keyframes upload-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 520px) {
+    .upload-invoice-header {
+        padding: 0 4%;
+    }
+
+    .upload-brand {
+        font-size: 17px;
+    }
+
+    .upload-brand-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .upload-back-link {
+        font-size: 12px;
+    }
+
+    .upload-invoice-main {
+        padding: 40px 0;
+    }
+
+    .upload-card {
+        padding: 15px;
+    }
+
+    .upload-dropzone {
+        min-height: 225px;
+        padding: 22px 12px;
+    }
+}
+
+/* Invoice review form */
+.upload-success {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.upload-success h2 {
+    margin: 8px 0 0;
+    color: #f8fafc;
+    font-size: 1.45rem;
+    line-height: 1.4;
+}
+
+.upload-success label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+
+.upload-success input,
+.upload-success select,
+.upload-success textarea {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background: #0b1222;
+    color: #f8fafc;
+    font: inherit;
+    line-height: 1.5;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.upload-success input:focus,
+.upload-success select:focus,
+.upload-success textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+}
+
+.upload-success textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.upload-success select {
+    cursor: pointer;
+}
+
+.upload-success .upload-submit-button {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.upload-success .upload-result-details {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.upload-success .upload-message {
+    align-items: flex-start;
+    line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+    .upload-success {
+        gap: 16px;
+    }
+
+    .upload-success h2 {
+        font-size: 1.25rem;
+    }
+
+    .upload-success input,
+    .upload-success select,
+    .upload-success textarea {
+        padding: 11px 12px;
+    }
+}
+
+/* =========================================
+   InvoiceAI — Upload Page Light Theme
+   ========================================= */
+
+/* Support both common theme-setting approaches */
+[data-theme="light"] .upload-invoice-page,
+.light-theme .upload-invoice-page,
+body.light .upload-invoice-page {
+    color: #172033;
+    background:
+        radial-gradient(
+            ellipse at 15% 0%,
+            rgba(57, 105, 230, 0.09),
+            transparent 40%
+        ),
+        #f4f7fc;
+}
+
+[data-theme="light"] .upload-invoice-header,
+.light-theme .upload-invoice-header,
+body.light .upload-invoice-header {
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom-color: #e0e7f1;
+}
+
+[data-theme="light"] .upload-back-link,
+.light-theme .upload-back-link,
+body.light .upload-back-link {
+    color: #526581;
+}
+
+[data-theme="light"] .upload-back-link:hover,
+.light-theme .upload-back-link:hover,
+body.light .upload-back-link:hover {
+    color: #2563eb;
+}
+
+[data-theme="light"] .upload-invoice-main h1,
+.light-theme .upload-invoice-main h1,
+body.light .upload-invoice-main h1 {
+    color: #172033;
+}
+
+[data-theme="light"] .upload-description,
+.light-theme .upload-description,
+body.light .upload-description {
+    color: #60718d;
+}
+
+[data-theme="light"] .upload-card,
+.light-theme .upload-card,
+body.light .upload-card {
+    background: linear-gradient(145deg, #ffffff, #f7f9ff);
+    border-color: #dce5f2;
+    box-shadow: 0 22px 55px rgba(32, 56, 95, 0.09);
+}
+
+[data-theme="light"] .upload-dropzone,
+.light-theme .upload-dropzone,
+body.light .upload-dropzone {
+    background: #f6f9ff;
+    border-color: #9bb7e8;
+}
+
+[data-theme="light"] .upload-dropzone:hover,
+.light-theme .upload-dropzone:hover,
+body.light .upload-dropzone:hover {
+    background: #edf4ff;
+    border-color: #4f83e5;
+}
+
+[data-theme="light"] .upload-dropzone strong,
+.light-theme .upload-dropzone strong,
+body.light .upload-dropzone strong {
+    color: #172033;
+}
+
+[data-theme="light"] .upload-file-hint,
+.light-theme .upload-file-hint,
+body.light .upload-file-hint {
+    color: #667995;
+}
+
+[data-theme="light"] .upload-choose-button,
+.light-theme .upload-choose-button,
+body.light .upload-choose-button {
+    color: #2456a5;
+    background: #edf4ff;
+    border-color: #c6d8f6;
+}
+
+[data-theme="light"] .upload-security-note,
+.light-theme .upload-security-note,
+body.light .upload-security-note {
+    color: #667995;
+}
+
+[data-theme="light"] .upload-result-details,
+.light-theme .upload-result-details,
+body.light .upload-result-details {
+    background: #f7f9fd;
+    border-color: #dce5f2;
+}
+
+[data-theme="light"] .upload-result-details p,
+.light-theme .upload-result-details p,
+body.light .upload-result-details p {
+    border-bottom-color: #e3e9f2;
+}
+
+[data-theme="light"] .upload-result-details p span,
+.light-theme .upload-result-details p span,
+body.light .upload-result-details p span {
+    color: #60718d;
+}
+
+[data-theme="light"] .upload-result-details p strong,
+.light-theme .upload-result-details p strong {
+    color: #172033;
+}
+
+[data-theme="light"] .upload-view-invoices,
+.light-theme .upload-view-invoices,
+body.light .upload-view-invoices {
+    color: #2563eb;
+}
+
+[data-theme="light"] .upload-view-invoices:hover,
+.light-theme .upload-view-invoices:hover,
+body.light .upload-view-invoices:hover {
+    color: #1d4ed8;
+}
+
+[data-theme="light"] .upload-success h2,
+.light-theme .upload-success h2,
+body.light .upload-success h2 {
+    color: #172033;
+}
+
+[data-theme="light"] .upload-success label,
+.light-theme .upload-success label,
+body.light .upload-success label {
+    color: #42536d;
+}
+
+[data-theme="light"] .upload-success input,
+[data-theme="light"] .upload-success select,
+[data-theme="light"] .upload-success textarea,
+.light-theme .upload-success input,
+.light-theme .upload-success select,
+.light-theme .upload-success textarea,
+body.light .upload-success input,
+body.light .upload-success select,
+body.light .upload-success textarea {
+    background: #ffffff;
+    border-color: #d1dceb;
+    color: #172033;
+}
+
+[data-theme="light"] .upload-success input::placeholder,
+[data-theme="light"] .upload-success textarea::placeholder,
+.light-theme .upload-success input::placeholder,
+.light-theme .upload-success textarea::placeholder,
+body.light .upload-success input::placeholder,
+body.light .upload-success textarea::placeholder {
+    color: #8492a8;
+}
+
+[data-theme="light"] .upload-success select option,
+.light-theme .upload-success select option,
+body.light .upload-success select option {
+    background: #ffffff;
+    color: #172033;
+}
+
