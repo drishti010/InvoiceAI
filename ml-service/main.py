@@ -20,14 +20,18 @@ app = FastAPI(title="AI Invoice ML Service")
 pytesseract.pytesseract.tesseract_cmd = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 )
+
+
 # --------------------------------------------------
-# 2. Load the trained ML pipeline.\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+# 2. Load the trained ML pipeline
 # --------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 MODEL_PATH = os.path.join(
-    BASE_DIR, "model", "expense_pipeline.pkl"
+    BASE_DIR,
+    "model",
+    "expense_pipeline.pkl"
 )
 
 pipeline = joblib.load(MODEL_PATH)
@@ -111,6 +115,7 @@ def read_invoice_text(file_bytes, filename):
         elif extension in [".jpg", ".jpeg", ".png"]:
 
             image = Image.open(io.BytesIO(file_bytes))
+
             return pytesseract.image_to_string(image)
 
         else:
@@ -180,7 +185,7 @@ async def process_invoice(
         if not description:
             description = text
 
-        # Predict category using the complete pipeline
+        # Predict category using the trained pipeline
         prediction = pipeline.predict([description])
 
         category = str(prediction[0])
