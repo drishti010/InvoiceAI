@@ -26,7 +26,7 @@ import {
 import { Link } from "react-router-dom";
 import "./Dashboard.css";
 
-const API_URL = "http://localhost:5000/api/invoices";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/invoices`;
 
 const CATEGORY_COLORS = [
     "#4b91ff",

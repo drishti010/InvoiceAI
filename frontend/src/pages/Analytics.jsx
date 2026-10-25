@@ -13,7 +13,7 @@ import {
 import { Link } from "react-router-dom";
 import "./Analytics.css";
 
-const API_URL = "http://localhost:5000/api/invoices";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/invoices`;
 
 const money = (amount) =>
     new Intl.NumberFormat("en-IN", {

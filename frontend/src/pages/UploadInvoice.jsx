@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import "./UploadInvoice.css";
 
-const API_URL = "http://localhost:5000/api/invoices";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/invoices`;
 
 const STANDARD_CATEGORIES = [
     "IT",

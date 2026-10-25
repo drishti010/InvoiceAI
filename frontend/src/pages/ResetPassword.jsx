@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import "./ResetPassword.css";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
 
 function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -39,7 +40,7 @@ function ResetPassword() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/reset-password",
+        `${API_URL}/reset-password`,
         {
           method: "POST",
           headers: {

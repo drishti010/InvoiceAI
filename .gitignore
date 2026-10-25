@@ -19,3 +19,5 @@ venv/
 # Uploaded invoice files
 backend/uploads/*
 !backend/uploads/.gitkeep
+__pycache__/
+*.py[cod]

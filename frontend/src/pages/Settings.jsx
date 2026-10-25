@@ -14,7 +14,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import "./Settings.css";
 
-const API_URL = "http://localhost:5000/api/auth";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
 
 function Settings({ theme, toggleTheme }) {
     const navigate = useNavigate();

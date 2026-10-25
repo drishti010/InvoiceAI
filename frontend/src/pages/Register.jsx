@@ -14,6 +14,7 @@ import {
     ArrowRight,
 } from "lucide-react";
 import "./Register.css";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
 
 function Register() {
     const navigate = useNavigate();
@@ -44,10 +45,9 @@ function Register() {
         setMessage("");
         setError("");
         setLoading(true);
-
-        try {
+        try{
             const response = await fetch(
-                "http://localhost:5000/api/auth/register",
+            `${API_URL}/register`,
                 {
                     method: "POST",
                     headers: {
