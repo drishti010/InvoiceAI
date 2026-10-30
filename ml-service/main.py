@@ -17,9 +17,14 @@ app = FastAPI(title="AI Invoice ML Service")
 # 1. Configure Tesseract OCR on Windows
 # --------------------------------------------------
 
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+# Configure Tesseract OCR for Windows and Linux
+
+if os.name == "nt":
+    pytesseract.pytesseract.tesseract_cmd = (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    )
+else:
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 
 # --------------------------------------------------
