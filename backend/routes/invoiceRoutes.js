@@ -1,4 +1,3 @@
-
 const express = require("express");
 const router = express.Router();
 
@@ -12,6 +11,7 @@ const FormData = require("form-data");
 const fs = require("fs");
 const path = require("path");
 
+// Get the logged-in user's ID.
 function getAuthenticatedUserId(req) {
     return (
         req.user?.userId ||
@@ -21,6 +21,7 @@ function getAuthenticatedUserId(req) {
     );
 }
 
+// Standard expense categories.
 const KNOWN_CATEGORIES = [
     "IT",
     "Travel",
@@ -29,6 +30,7 @@ const KNOWN_CATEGORIES = [
     "Other"
 ];
 
+// Normalize standard categories while allowing custom categories.
 function normalizeCategory(category) {
     if (typeof category !== "string" || !category.trim()) {
         return "Uncategorized";
@@ -40,10 +42,10 @@ function normalizeCategory(category) {
         item => item.toLowerCase() === trimmed.toLowerCase()
     );
 
-    // Permit custom categories as well as standard categories.
     return known || trimmed;
 }
 
+// Validate extracted invoice information.
 function getValidationErrors(data) {
     const errors = [];
 
@@ -74,7 +76,7 @@ function getValidationErrors(data) {
     return errors;
 }
 
-// STEP 1: Upload the invoice, extract details, and store a pending record.
+// STEP 1: Upload an invoice, extract its details, and create a pending record.
 router.post(
     "/upload",
     authMiddleware,
@@ -98,6 +100,7 @@ router.post(
             }
 
             const absoluteFilePath = path.resolve(req.file.path);
+
             const formData = new FormData();
 
             formData.append(
@@ -106,8 +109,44 @@ router.post(
                 req.file.originalname
             );
 
+            // Read the deployed FastAPI service URL from the environment.
+            const mlServiceUrl = process.env.ML_SERVICE_URL;
+
+            if (!mlServiceUrl || !mlServiceUrl.trim()) {
+                throw new Error(
+                    "ML_SERVICE_URL is not configured in the backend environment."
+                );
+            }
+
+            const normalizedMlServiceUrl = mlServiceUrl
+                .trim()
+                .replace(/\/+$/, "");
+
+            let parsedMlServiceUrl;
+
+            try {
+                parsedMlServiceUrl = new URL(normalizedMlServiceUrl);
+            } catch {
+                throw new Error(
+                    "ML_SERVICE_URL is not a valid URL. Check the Render environment variable."
+                );
+            }
+
+            if (
+                parsedMlServiceUrl.protocol !== "https:" &&
+                parsedMlServiceUrl.hostname !== "localhost" &&
+                parsedMlServiceUrl.hostname !== "127.0.0.1"
+            ) {
+                throw new Error(
+                    "ML_SERVICE_URL must use HTTPS for a deployed service."
+                );
+            }
+
+            const mlEndpoint =
+                `${normalizedMlServiceUrl}/process-invoice`;
+
             const mlResponse = await axios.post(
-                "`${process.env.ML_SERVICE_URL}/process-invoice`,",
+                mlEndpoint,
                 formData,
                 {
                     headers: formData.getHeaders(),
@@ -122,16 +161,20 @@ router.post(
                 vendor: extracted.vendor || "Unknown",
                 invoiceNumber: extracted.invoiceNumber || null,
                 date: extracted.date || null,
+
                 total:
                     extracted.total == null
                         ? null
                         : Number(extracted.total),
+
                 items: Array.isArray(extracted.items)
                     ? extracted.items
                     : [],
+
                 predictedCategory: normalizeCategory(
                     extracted.category
                 ),
+
                 validationErrors: []
             };
 
@@ -170,9 +213,13 @@ router.post(
                 }).catch(() => {});
             }
 
-            return res.status(500).json({
+            const statusCode = error.response ? 502 : 500;
+
+            return res.status(statusCode).json({
                 message:
                     error.response?.data?.detail ||
+                    error.response?.data?.message ||
+                    error.message ||
                     "Invoice extraction failed. Please try again."
             });
         }
@@ -221,12 +268,18 @@ router.post(
                 });
             }
 
-            // Only use files stored inside this application's uploads directory.
-            const uploadsDirectory = path.resolve(__dirname, "../uploads");
+            // Ensure the saved file is inside the uploads directory.
+            const uploadsDirectory = path.resolve(
+                __dirname,
+                "../uploads"
+            );
+
             const storedFilePath = path.resolve(pending.filePath);
 
             if (
-                !storedFilePath.startsWith(uploadsDirectory + path.sep) ||
+                !storedFilePath.startsWith(
+                    uploadsDirectory + path.sep
+                ) ||
                 !fs.existsSync(storedFilePath)
             ) {
                 return res.status(400).json({
@@ -266,8 +319,21 @@ router.post(
                 });
             }
 
-            const cleanedItems = (items ?? pending.items)
-                .filter(item => typeof item === "string")
+            const submittedItems = items ?? pending.items;
+
+            if (
+                !Array.isArray(submittedItems) ||
+                !submittedItems.every(
+                    item => typeof item === "string"
+                )
+            ) {
+                return res.status(400).json({
+                    message:
+                        "Invoice items must contain only text values."
+                });
+            }
+
+            const cleanedItems = submittedItems
                 .map(item => item.trim())
                 .filter(Boolean);
 
@@ -281,10 +347,15 @@ router.post(
                 });
             }
 
-            // Avoid creating duplicate records for the same user and
-            // invoice number. Update the existing record when appropriate.
+            const categoryStatus = category
+                ? "User Confirmed"
+                : cleanedCategory === "Uncategorized"
+                    ? "Uncategorized"
+                    : "AI Suggested";
+
             let savedInvoice;
 
+            // Update an existing invoice for the same user and invoice number.
             if (cleanedNumber) {
                 savedInvoice = await Invoice.findOneAndUpdate(
                     {
@@ -298,11 +369,7 @@ router.post(
                             total: numericTotal,
                             items: cleanedItems,
                             category: cleanedCategory,
-                            categoryStatus: category
-                                ? "User Confirmed"
-                                : cleanedCategory === "Uncategorized"
-                                    ? "Uncategorized"
-                                    : "AI Suggested",
+                            categoryStatus,
                             status: "Processed",
                             fileName: pending.fileName,
                             filePath: storedFilePath
@@ -328,11 +395,7 @@ router.post(
                     total: numericTotal,
                     items: cleanedItems,
                     category: cleanedCategory,
-                    categoryStatus: category
-                        ? "User Confirmed"
-                        : cleanedCategory === "Uncategorized"
-                            ? "Uncategorized"
-                            : "AI Suggested",
+                    categoryStatus,
                     status: "Processed",
                     fileName: pending.fileName,
                     filePath: storedFilePath
@@ -386,8 +449,7 @@ router.get("/", authMiddleware, async (req, res) => {
     }
 });
 
-
-/* STEP 4: Edit an invoice belonging to the logged-in user. */
+// STEP 4: Edit an invoice belonging to the logged-in user.
 router.put("/:id", authMiddleware, async (req, res) => {
     try {
         const userId = getAuthenticatedUserId(req);
@@ -405,8 +467,14 @@ router.put("/:id", authMiddleware, async (req, res) => {
             });
         }
 
-        const { vendor, invoiceNumber, date, total, items, category } =
-            req.body;
+        const {
+            vendor,
+            invoiceNumber,
+            date,
+            total,
+            items,
+            category
+        } = req.body;
 
         if (
             typeof vendor !== "string" ||
@@ -421,7 +489,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
         const numericTotal = Number(total);
 
-        if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
+        if (
+            !Number.isFinite(numericTotal) ||
+            numericTotal <= 0
+        ) {
             return res.status(400).json({
                 message: "Enter a valid positive invoice total."
             });
@@ -429,8 +500,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
         if (
             items !== undefined &&
-            (!Array.isArray(items) ||
-                !items.every(item => typeof item === "string"))
+            (
+                !Array.isArray(items) ||
+                !items.every(item => typeof item === "string")
+            )
         ) {
             return res.status(400).json({
                 message: "Invoice items must be a list of text values."
@@ -439,6 +512,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
         const cleanedVendor = vendor.trim();
         const cleanedDate = date.trim();
+
         const cleanedNumber =
             typeof invoiceNumber === "string"
                 ? invoiceNumber.trim()
@@ -498,7 +572,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
     }
 });
 
-/* STEP 4: Delete one invoice belonging to the logged-in user. */
+// STEP 5: Delete an invoice belonging to the logged-in user.
 router.delete("/:id", authMiddleware, async (req, res) => {
     try {
         const userId = getAuthenticatedUserId(req);
@@ -539,6 +613,5 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         });
     }
 });
-
 
 module.exports = router;
