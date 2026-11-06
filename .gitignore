@@ -21,3 +21,4 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 __pycache__/
 *.py[cod]
+venv311/

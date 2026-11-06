@@ -1,4 +1,6 @@
+
 services:
+  # Frontend
   - type: web
     name: invoiceai-frontend
     runtime: static
@@ -9,3 +11,11 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  # ML Service - Docker runtime for Tesseract OCR
+  - type: web
+    name: invoiceai-ml-service
+    runtime: docker
+    rootDir: ml-service
+    dockerfilePath: ./Dockerfile
+    dockerContext: .

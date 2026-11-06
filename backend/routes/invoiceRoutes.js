@@ -30,7 +30,7 @@ const KNOWN_CATEGORIES = [
     "Other"
 ];
 
-// Normalize standard categories while allowing custom categories.
+// Normalize categories while allowing custom categories.
 function normalizeCategory(category) {
     if (typeof category !== "string" || !category.trim()) {
         return "Uncategorized";
@@ -76,7 +76,7 @@ function getValidationErrors(data) {
     return errors;
 }
 
-// STEP 1: Upload an invoice, extract its details, and create a pending record.
+// STEP 1: Upload an invoice, extract details, and create a pending record.
 router.post(
     "/upload",
     authMiddleware,
@@ -101,20 +101,19 @@ router.post(
 
             const absoluteFilePath = path.resolve(req.file.path);
 
-            const formData = new FormData();
+            // Ensure the uploaded file exists before sending it to FastAPI.
+            if (!fs.existsSync(absoluteFilePath)) {
+                return res.status(400).json({
+                    message: "Uploaded file not found. Please upload it again."
+                });
+            }
 
-            formData.append(
-                "invoice",
-                fs.createReadStream(absoluteFilePath),
-                req.file.originalname
-            );
-
-            // Read the deployed FastAPI service URL from the environment.
+            // Read the deployed FastAPI service URL from Render.
             const mlServiceUrl = process.env.ML_SERVICE_URL;
 
             if (!mlServiceUrl || !mlServiceUrl.trim()) {
                 throw new Error(
-                    "ML_SERVICE_URL is not configured in the backend environment."
+                    "ML_SERVICE_URL is missing from the backend environment."
                 );
             }
 
@@ -128,7 +127,7 @@ router.post(
                 parsedMlServiceUrl = new URL(normalizedMlServiceUrl);
             } catch {
                 throw new Error(
-                    "ML_SERVICE_URL is not a valid URL. Check the Render environment variable."
+                    "ML_SERVICE_URL is invalid. Check the Render environment variable."
                 );
             }
 
@@ -142,8 +141,22 @@ router.post(
                 );
             }
 
-            const mlEndpoint =
-                `${normalizedMlServiceUrl}/process-invoice`;
+            // Construct the URL safely.
+            const mlEndpoint = new URL(
+                "/process-invoice",
+                normalizedMlServiceUrl
+            ).toString();
+
+            const formData = new FormData();
+
+            formData.append(
+                "invoice",
+                fs.createReadStream(absoluteFilePath),
+                {
+                    filename: req.file.originalname,
+                    contentType: req.file.mimetype
+                }
+            );
 
             const mlResponse = await axios.post(
                 mlEndpoint,
@@ -151,6 +164,7 @@ router.post(
                 {
                     headers: formData.getHeaders(),
                     maxBodyLength: Infinity,
+                    maxContentLength: Infinity,
                     timeout: 120000
                 }
             );
@@ -268,7 +282,7 @@ router.post(
                 });
             }
 
-            // Ensure the saved file is inside the uploads directory.
+            // Verify that the uploaded file is inside the uploads directory.
             const uploadsDirectory = path.resolve(
                 __dirname,
                 "../uploads"
@@ -277,9 +291,7 @@ router.post(
             const storedFilePath = path.resolve(pending.filePath);
 
             if (
-                !storedFilePath.startsWith(
-                    uploadsDirectory + path.sep
-                ) ||
+                !storedFilePath.startsWith(uploadsDirectory + path.sep) ||
                 !fs.existsSync(storedFilePath)
             ) {
                 return res.status(400).json({
@@ -323,13 +335,10 @@ router.post(
 
             if (
                 !Array.isArray(submittedItems) ||
-                !submittedItems.every(
-                    item => typeof item === "string"
-                )
+                !submittedItems.every(item => typeof item === "string")
             ) {
                 return res.status(400).json({
-                    message:
-                        "Invoice items must contain only text values."
+                    message: "Invoice items must contain only text values."
                 });
             }
 
@@ -355,7 +364,7 @@ router.post(
 
             let savedInvoice;
 
-            // Update an existing invoice for the same user and invoice number.
+            // Update an existing invoice for this user if the invoice number matches.
             if (cleanedNumber) {
                 savedInvoice = await Invoice.findOneAndUpdate(
                     {
@@ -489,10 +498,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
         const numericTotal = Number(total);
 
-        if (
-            !Number.isFinite(numericTotal) ||
-            numericTotal <= 0
-        ) {
+        if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
             return res.status(400).json({
                 message: "Enter a valid positive invoice total."
             });
