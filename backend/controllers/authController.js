@@ -7,19 +7,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 const PasswordResetToken = require("../models/PasswordResetToken");
-
-// EMAIL TRANSPORTER
-const emailTransporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.EMAIL_USER?.trim(),
-        pass: process.env.EMAIL_APP_PASSWORD?.replace(/\s/g, "")
-    }
-});
 
 // REGISTER USER
 const registerUser = async (req, res) => {
@@ -497,11 +485,8 @@ const forgotPassword = async (req, res) => {
             });
         }
 
-        if (
-            !process.env.EMAIL_USER ||
-            !process.env.EMAIL_APP_PASSWORD
-        ) {
-            throw new Error("Email configuration is missing");
+        if (!process.env.RESEND_API_KEY) {
+            throw new Error("Resend API key is not configured");
         }
 
         // Invalidate older reset links for this user.
@@ -529,31 +514,47 @@ const forgotPassword = async (req, res) => {
             `${frontendUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
         try {
-            await emailTransporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: user.email,
-                subject: "Reset your InvoiceAI password",
-                text:
-                    "We received a request to reset your InvoiceAI password.\n\n" +
-                    `Open this link within 15 minutes:\n${resetLink}\n\n` +
-                    "If you did not request this, you can ignore this email.",
-                html: `
-                    <div style="font-family:Arial,sans-serif;line-height:1.6">
-                        <h2>InvoiceAI Password Reset</h2>
-                        <p>We received a request to reset your password.</p>
-                        <p>This link expires in <strong>15 minutes</strong>.</p>
-                        <p>
-                            <a href="${resetLink}"
-                               style="background:#4f46e5;color:white;
-                               padding:12px 18px;text-decoration:none;
-                               border-radius:8px;display:inline-block">
-                                Reset Password
-                            </a>
-                        </p>
-                        <p>If you did not request this, ignore this email.</p>
-                    </div>
-                `
-            });
+            const emailResponse = await fetch(
+                "https://api.resend.com/emails",
+                {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        from: "InvoiceAI <onboarding@resend.dev>",
+                        to: [user.email],
+                        subject: "Reset your InvoiceAI password",
+                        text:
+                            "We received a request to reset your InvoiceAI password.\n\n" +
+                            `Open this link within 15 minutes:\n${resetLink}\n\n` +
+                            "If you did not request this, you can ignore this email.",
+                        html: `
+                            <div style="font-family:Arial,sans-serif;line-height:1.6">
+                                <h2>InvoiceAI Password Reset</h2>
+                                <p>We received a request to reset your password.</p>
+                                <p>This link expires in <strong>15 minutes</strong>.</p>
+                                <p>
+                                    <a href="${resetLink}"
+                                       style="background:#4f46e5;color:white;
+                                       padding:12px 18px;text-decoration:none;
+                                       border-radius:8px;display:inline-block">
+                                        Reset Password
+                                    </a>
+                                </p>
+                                <p>If you did not request this, ignore this email.</p>
+                            </div>
+                        `
+                    })
+                }
+            );
+
+            if (!emailResponse.ok) {
+                const errorDetails = await emailResponse.text();
+                throw new Error(`Resend API error: ${errorDetails}`);
+            }
+
         } catch (emailError) {
             await PasswordResetToken.deleteMany({ user: user._id });
             throw emailError;
