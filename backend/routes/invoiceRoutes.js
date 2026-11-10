@@ -1,8 +1,10 @@
+
 const express = require("express");
 const router = express.Router();
 
 const upload = require("../middleware/upload");
 const authMiddleware = require("../middleware/authMiddleware");
+
 const Invoice = require("../models/Invoice");
 const PendingInvoice = require("../models/PendingInvoice");
 
@@ -11,7 +13,10 @@ const FormData = require("form-data");
 const fs = require("fs");
 const path = require("path");
 
-// Get the logged-in user's ID.
+// ==================================================
+// 1. AUTHENTICATED USER
+// ==================================================
+
 function getAuthenticatedUserId(req) {
     return (
         req.user?.userId ||
@@ -21,7 +26,10 @@ function getAuthenticatedUserId(req) {
     );
 }
 
-// Standard expense categories.
+// ==================================================
+// 2. EXPENSE CATEGORIES
+// ==================================================
+
 const KNOWN_CATEGORIES = [
     "IT",
     "Travel",
@@ -30,7 +38,6 @@ const KNOWN_CATEGORIES = [
     "Other"
 ];
 
-// Normalize categories while allowing custom categories.
 function normalizeCategory(category) {
     if (typeof category !== "string" || !category.trim()) {
         return "Uncategorized";
@@ -45,7 +52,10 @@ function normalizeCategory(category) {
     return known || trimmed;
 }
 
-// Validate extracted invoice information.
+// ==================================================
+// 3. VALIDATE EXTRACTED INVOICE
+// ==================================================
+
 function getValidationErrors(data) {
     const errors = [];
 
@@ -76,15 +86,59 @@ function getValidationErrors(data) {
     return errors;
 }
 
-// STEP 1: Upload an invoice, extract details, and create a pending record.
+// ==================================================
+// 4. ML SERVICE CONFIGURATION
+// ==================================================
+
+function getMLServiceEndpoint() {
+    const serviceUrl = process.env.ML_SERVICE_URL;
+
+    if (!serviceUrl || !serviceUrl.trim()) {
+        throw new Error(
+            "ML_SERVICE_URL is missing from backend environment variables."
+        );
+    }
+
+    let parsedUrl;
+
+    try {
+        parsedUrl = new URL(serviceUrl.trim());
+    } catch {
+        throw new Error("Invalid ML_SERVICE_URL configuration.");
+    }
+
+    if (
+        parsedUrl.protocol !== "https:" &&
+        parsedUrl.hostname !== "localhost" &&
+        parsedUrl.hostname !== "127.0.0.1"
+    ) {
+        throw new Error("ML_SERVICE_URL must use HTTPS.");
+    }
+
+    // Remove trailing slash and construct the endpoint.
+    return new URL(
+        "/process-invoice",
+        parsedUrl.origin
+    ).toString();
+}
+
+// ==================================================
+// 5. STEP 1: UPLOAD AND EXTRACT INVOICE
+// ==================================================
+
 router.post(
     "/upload",
     authMiddleware,
     upload.single("invoice"),
     async (req, res) => {
+
         let pending = null;
+        let absoluteFilePath = null;
+        let extractionSuccessful = false;
 
         try {
+
+            // Check uploaded file.
             if (!req.file) {
                 return res.status(400).json({
                     message: "Please select an invoice file."
@@ -99,54 +153,46 @@ router.post(
                 });
             }
 
-            const absoluteFilePath = path.resolve(req.file.path);
+            absoluteFilePath = path.resolve(req.file.path);
 
-            // Ensure the uploaded file exists before sending it to FastAPI.
             if (!fs.existsSync(absoluteFilePath)) {
                 return res.status(400).json({
-                    message: "Uploaded file not found. Please upload it again."
+                    message: "Uploaded file not found. Please upload again."
                 });
             }
 
-            // Read the deployed FastAPI service URL from Render.
-            const mlServiceUrl = process.env.ML_SERVICE_URL;
+            // Check supported file types.
+            const allowedMimeTypes = [
+                "application/pdf",
+                "image/jpeg",
+                "image/png"
+            ];
 
-            if (!mlServiceUrl || !mlServiceUrl.trim()) {
-                throw new Error(
-                    "ML_SERVICE_URL is missing from the backend environment."
-                );
+            if (!allowedMimeTypes.includes(req.file.mimetype)) {
+                return res.status(400).json({
+                    message: "Only PDF, JPG and PNG files are supported."
+                });
             }
 
-            const normalizedMlServiceUrl = mlServiceUrl
-                .trim()
-                .replace(/\/+$/, "");
-
-            let parsedMlServiceUrl;
-
-            try {
-                parsedMlServiceUrl = new URL(normalizedMlServiceUrl);
-            } catch {
-                throw new Error(
-                    "ML_SERVICE_URL is invalid. Check the Render environment variable."
-                );
+            // Check file size (5 MB).
+            if (req.file.size > 5 * 1024 * 1024) {
+                return res.status(400).json({
+                    message: "File size must be 5 MB or smaller."
+                });
             }
 
-            if (
-                parsedMlServiceUrl.protocol !== "https:" &&
-                parsedMlServiceUrl.hostname !== "localhost" &&
-                parsedMlServiceUrl.hostname !== "127.0.0.1"
-            ) {
-                throw new Error(
-                    "ML_SERVICE_URL must use HTTPS for a deployed service."
-                );
-            }
+            // Get FastAPI endpoint.
+            const mlEndpoint = getMLServiceEndpoint();
 
-            // Construct the URL safely.
-            const mlEndpoint = new URL(
-                "/process-invoice",
-                normalizedMlServiceUrl
-            ).toString();
+            console.log("\n========== INVOICE UPLOAD ==========");
+            console.log("File:", req.file.originalname);
+            console.log("Size:", req.file.size);
+            console.log("Type:", req.file.mimetype);
+            console.log("ML Endpoint:", mlEndpoint);
+            console.log("User ID:", userId);
+            console.log("====================================\n");
 
+            // Create multipart form data.
             const formData = new FormData();
 
             formData.append(
@@ -158,22 +204,46 @@ router.post(
                 }
             );
 
+            // Send invoice to FastAPI.
             const mlResponse = await axios.post(
                 mlEndpoint,
                 formData,
                 {
-                    headers: formData.getHeaders(),
+                    headers: {
+                        ...formData.getHeaders()
+                    },
+
                     maxBodyLength: Infinity,
                     maxContentLength: Infinity,
-                    timeout: 120000
+
+                    timeout: 180000,
+
+                    validateStatus: status =>
+                        status >= 200 && status < 300
                 }
             );
 
+            console.log("ML Service Status:", mlResponse.status);
+
             const extracted = mlResponse.data || {};
 
+            // Validate ML response.
+            if (
+                typeof extracted !== "object" ||
+                Array.isArray(extracted)
+            ) {
+                throw new Error(
+                    "Invalid response received from ML service."
+                );
+            }
+
+            // Prepare extracted invoice data.
             const extractedInvoice = {
+
                 vendor: extracted.vendor || "Unknown",
+
                 invoiceNumber: extracted.invoiceNumber || null,
+
                 date: extracted.date || null,
 
                 total:
@@ -190,67 +260,192 @@ router.post(
                 ),
 
                 validationErrors: []
+
             };
 
+            if (
+                extractedInvoice.total !== null &&
+                !Number.isFinite(extractedInvoice.total)
+            ) {
+                extractedInvoice.total = null;
+            }
+
+            // Combine extraction and backend validation errors.
             extractedInvoice.validationErrors = [
                 ...new Set([
                     ...(Array.isArray(extracted.validationErrors)
                         ? extracted.validationErrors
                         : []),
+
                     ...getValidationErrors(extractedInvoice)
                 ])
             ];
 
+            console.log("\n========== EXTRACTED DATA ==========");
+            console.log("Vendor:", extractedInvoice.vendor);
+            console.log("Invoice Number:", extractedInvoice.invoiceNumber);
+            console.log("Date:", extractedInvoice.date);
+            console.log("Total:", extractedInvoice.total);
+            console.log("Items:", extractedInvoice.items);
+            console.log(
+                "Predicted Category:",
+                extractedInvoice.predictedCategory
+            );
+            console.log(
+                "Validation Errors:",
+                extractedInvoice.validationErrors
+            );
+            console.log("====================================\n");
+
+            // Create pending invoice record.
             pending = await PendingInvoice.create({
+
                 user: userId,
+
                 ...extractedInvoice,
+
                 fileName: req.file.originalname,
+
                 filePath: absoluteFilePath
+
             });
 
+            extractionSuccessful = true;
+
+            // Send response to React frontend.
             return res.status(200).json({
-                message:
-                    "Invoice extracted. Review its details before saving.",
+
+                message: "Invoice extracted successfully. Review before saving.",
+
                 pendingUploadId: pending._id,
+
                 extractedInvoice
+
             });
+
         } catch (error) {
+
+            console.error("\n========== INVOICE EXTRACTION ERROR ==========");
+
+            console.error("Message:", error.message);
+
             console.error(
-                "Invoice extraction error:",
-                error.response?.data || error.message
+                "HTTP Status:",
+                error.response?.status || "No response status"
             );
 
+            console.error(
+                "Response Data:",
+                error.response?.data || "No response data"
+            );
+
+            console.error(
+                "Request URL:",
+                error.config?.url || "Unavailable"
+            );
+
+            console.error(
+                "Response Headers:",
+                error.response?.headers || "Unavailable"
+            );
+
+            console.error("===============================================\n");
+
+            // Remove pending record if it was created.
             if (pending) {
                 await PendingInvoice.deleteOne({
                     _id: pending._id,
                     user: getAuthenticatedUserId(req)
-                }).catch(() => {});
+                }).catch(cleanupError => {
+                    console.error(
+                        "Pending cleanup error:",
+                        cleanupError.message
+                    );
+                });
             }
 
-            const statusCode = error.response ? 502 : 500;
+            // Remove uploaded file after failed extraction.
+            if (
+                absoluteFilePath &&
+                fs.existsSync(absoluteFilePath)
+            ) {
+                fs.unlink(absoluteFilePath, cleanupError => {
+                    if (cleanupError) {
+                        console.error(
+                            "File cleanup error:",
+                            cleanupError.message
+                        );
+                    }
+                });
+            }
 
-            return res.status(statusCode).json({
-                message:
+            const upstreamStatus = error.response?.status;
+
+            const statusCode = upstreamStatus === 429
+                ? 503
+                : error.response
+                    ? 502
+                    : error.code === "ECONNABORTED"
+                        ? 504
+                        : 500;
+
+            let message = "Invoice extraction failed. Please try again.";
+
+            if (upstreamStatus === 429) {
+                message =
+                    "The ML service returned a rate-limit response. Please wait before retrying.";
+            } else if (upstreamStatus) {
+                message =
                     error.response?.data?.detail ||
                     error.response?.data?.message ||
-                    error.message ||
-                    "Invoice extraction failed. Please try again."
+                    "The ML service could not process this invoice.";
+            } else if (error.code === "ECONNABORTED") {
+                message = "ML service request timed out.";
+            } else if (error.code === "ECONNREFUSED") {
+                message = "Unable to connect to the ML service.";
+            } else if (error.message) {
+                message = error.message;
+            }
+
+            return res.status(statusCode).json({
+
+                message,
+
+                upstreamStatus: upstreamStatus || null
+
             });
+
+        } finally {
+
+            // Do not delete a file required for confirmation.
+            if (
+                !extractionSuccessful &&
+                absoluteFilePath &&
+                fs.existsSync(absoluteFilePath)
+            ) {
+                // File cleanup is handled in the catch block.
+            }
+
         }
     }
 );
 
-// STEP 2: Confirm extracted details and save the invoice.
+// ==================================================
+// 6. STEP 2: CONFIRM AND SAVE INVOICE
+// ==================================================
+
 router.post(
     "/confirm",
     authMiddleware,
     async (req, res) => {
+
         try {
+
             const userId = getAuthenticatedUserId(req);
 
             if (!userId) {
                 return res.status(401).json({
-                    message: "User identity is missing. Please log in again."
+                    message: "Please log in again."
                 });
             }
 
@@ -270,6 +465,7 @@ router.post(
                 });
             }
 
+            // Find pending invoice belonging to this user.
             const pending = await PendingInvoice.findOne({
                 _id: pendingUploadId,
                 user: userId
@@ -277,12 +473,11 @@ router.post(
 
             if (!pending) {
                 return res.status(404).json({
-                    message:
-                        "Pending upload not found or expired. Upload the invoice again."
+                    message: "Pending upload not found. Upload again."
                 });
             }
 
-            // Verify that the uploaded file is inside the uploads directory.
+            // Verify uploaded file.
             const uploadsDirectory = path.resolve(
                 __dirname,
                 "../uploads"
@@ -295,11 +490,11 @@ router.post(
                 !fs.existsSync(storedFilePath)
             ) {
                 return res.status(400).json({
-                    message:
-                        "The uploaded file is unavailable. Please upload it again."
+                    message: "Uploaded file is unavailable. Please upload again."
                 });
             }
 
+            // Clean invoice fields.
             const cleanedVendor =
                 typeof vendor === "string" ? vendor.trim() : "";
 
@@ -313,6 +508,7 @@ router.post(
 
             const numericTotal = Number(total);
 
+            // Validate invoice details.
             if (
                 !cleanedVendor ||
                 !cleanedDate ||
@@ -320,14 +516,19 @@ router.post(
                 numericTotal <= 0
             ) {
                 return res.status(400).json({
-                    message:
-                        "Please enter a vendor, valid date, and positive total."
+                    message: "Enter a vendor, valid date and positive total."
                 });
             }
 
-            if (items != null && !Array.isArray(items)) {
+            if (
+                items != null &&
+                (
+                    !Array.isArray(items) ||
+                    !items.every(item => typeof item === "string")
+                )
+            ) {
                 return res.status(400).json({
-                    message: "Invoice items must be a list."
+                    message: "Invoice items must be a list of text values."
                 });
             }
 
@@ -364,15 +565,19 @@ router.post(
 
             let savedInvoice;
 
-            // Update an existing invoice for this user if the invoice number matches.
+            // Update existing invoice if invoice number matches.
             if (cleanedNumber) {
+
                 savedInvoice = await Invoice.findOneAndUpdate(
+
                     {
                         user: userId,
                         invoiceNumber: cleanedNumber
                     },
+
                     {
                         $set: {
+
                             vendor: cleanedVendor,
                             date: cleanedDate,
                             total: numericTotal,
@@ -382,12 +587,15 @@ router.post(
                             status: "Processed",
                             fileName: pending.fileName,
                             filePath: storedFilePath
+
                         },
+
                         $setOnInsert: {
                             user: userId,
                             invoiceNumber: cleanedNumber
                         }
                     },
+
                     {
                         new: true,
                         upsert: true,
@@ -395,8 +603,11 @@ router.post(
                         setDefaultsOnInsert: true
                     }
                 );
+
             } else {
+
                 savedInvoice = await Invoice.create({
+
                     user: userId,
                     vendor: cleanedVendor,
                     invoiceNumber: null,
@@ -408,19 +619,32 @@ router.post(
                     status: "Processed",
                     fileName: pending.fileName,
                     filePath: storedFilePath
+
                 });
+
             }
 
+            // Delete pending record after successful save.
             await PendingInvoice.deleteOne({
                 _id: pending._id,
                 user: userId
             });
 
+            console.log(
+                "Invoice saved successfully:",
+                savedInvoice._id
+            );
+
             return res.status(200).json({
+
                 message: "Invoice saved successfully.",
+
                 invoice: savedInvoice
+
             });
+
         } catch (error) {
+
             console.error(
                 "Invoice confirmation error:",
                 error.message
@@ -433,23 +657,34 @@ router.post(
     }
 );
 
-// STEP 3: List invoices belonging to the logged-in user.
+// ==================================================
+// 7. STEP 3: GET ALL USER INVOICES
+// ==================================================
+
 router.get("/", authMiddleware, async (req, res) => {
+
     try {
+
         const userId = getAuthenticatedUserId(req);
 
         if (!userId) {
             return res.status(401).json({
-                message: "User identity is missing. Please log in again."
+                message: "User identity is missing."
             });
         }
 
         const invoices = await Invoice.find({
             user: userId
-        }).sort({ createdAt: -1 });
+        }).sort({
+            createdAt: -1
+        });
 
-        return res.status(200).json({ invoices });
+        return res.status(200).json({
+            invoices
+        });
+
     } catch (error) {
+
         console.error("Fetch invoices error:", error.message);
 
         return res.status(500).json({
@@ -458,9 +693,14 @@ router.get("/", authMiddleware, async (req, res) => {
     }
 });
 
-// STEP 4: Edit an invoice belonging to the logged-in user.
+// ==================================================
+// 8. STEP 4: EDIT INVOICE
+// ==================================================
+
 router.put("/:id", authMiddleware, async (req, res) => {
+
     try {
+
         const userId = getAuthenticatedUserId(req);
         const { id } = req.params;
 
@@ -533,12 +773,14 @@ router.put("/:id", authMiddleware, async (req, res) => {
         }
 
         const updates = {
+
             vendor: cleanedVendor,
             invoiceNumber: cleanedNumber || null,
             date: cleanedDate,
             total: numericTotal,
             category: cleanedCategory,
             categoryStatus: "User Confirmed"
+
         };
 
         if (items !== undefined) {
@@ -548,11 +790,16 @@ router.put("/:id", authMiddleware, async (req, res) => {
         }
 
         const invoice = await Invoice.findOneAndUpdate(
+
             {
                 _id: id,
                 user: userId
             },
-            { $set: updates },
+
+            {
+                $set: updates
+            },
+
             {
                 new: true,
                 runValidators: true
@@ -566,10 +813,15 @@ router.put("/:id", authMiddleware, async (req, res) => {
         }
 
         return res.status(200).json({
+
             message: "Invoice updated successfully.",
+
             invoice
+
         });
+
     } catch (error) {
+
         console.error("Edit invoice error:", error.message);
 
         return res.status(500).json({
@@ -578,9 +830,14 @@ router.put("/:id", authMiddleware, async (req, res) => {
     }
 });
 
-// STEP 5: Delete an invoice belonging to the logged-in user.
+// ==================================================
+// 9. STEP 5: DELETE INVOICE
+// ==================================================
+
 router.delete("/:id", authMiddleware, async (req, res) => {
+
     try {
+
         const userId = getAuthenticatedUserId(req);
         const { id } = req.params;
 
@@ -597,8 +854,10 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         }
 
         const invoice = await Invoice.findOneAndDelete({
+
             _id: id,
             user: userId
+
         });
 
         if (!invoice) {
@@ -608,10 +867,15 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         }
 
         return res.status(200).json({
+
             message: "Invoice deleted successfully.",
+
             deletedInvoiceId: invoice._id
+
         });
+
     } catch (error) {
+
         console.error("Delete invoice error:", error.message);
 
         return res.status(500).json({
@@ -619,5 +883,9 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         });
     }
 });
+
+// ==================================================
+// 10. EXPORT ROUTER
+// ==================================================
 
 module.exports = router;
