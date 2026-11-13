@@ -935,24 +935,7 @@ function Dashboard({ theme, toggleTheme }) {
                             </div>
 
                             <div className="recent-actions">
-                                <button
-                                    type="button"
-                                    className="secondary-button"
-                                    onClick={handleExportInvoice}
-                                    disabled={
-                                        loading || recentInvoices.length === 0
-                                    }
-                                    title={
-                                        recentInvoices.length
-                                            ? "Export the most recent invoice as PDF"
-                                            : "No invoices available to export"
-                                    }
-                                >
-                                    <Download size={16} />
-                                    Export
-                                </button>
-
-                                <Link to="/invoices" className="view-all">
+                                     <Link to="/invoices" className="view-all">
                                     View all <ArrowUpRight size={17} />
                                 </Link>
                             </div>
