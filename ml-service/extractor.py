@@ -1,105 +1,310 @@
-import re
 
+import re
+from datetime import datetime
+
+
+# ==================================================
+# 1. TEXT NORMALIZATION
+# ==================================================
 
 def normalize_text(text):
-    """Normalize whitespace while preserving line boundaries."""
-    return "\n".join(
-        re.sub(r"[ \t]+", " ", line).strip()
-        for line in text.splitlines()
-    )
+    """Normalize OCR text while preserving line boundaries."""
 
+    if not text:
+        return ""
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("\u00a0", " ")
+
+    lines = []
+
+    for line in text.splitlines():
+        line = re.sub(r"[ \t]+", " ", line).strip()
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+# ==================================================
+# 2. INVOICE NUMBER EXTRACTION
+# ==================================================
 
 def extract_invoice_number(text):
-    """Extract an invoice number from common invoice formats."""
+    """Extract invoice numbers without confusing them with dates."""
+
+    lines = normalize_text(text).splitlines()
+
     patterns = [
         r"\bInvoice\s*(?:No\.?|Number|#)\s*[:#-]?\s*([A-Z0-9][A-Z0-9/-]*\d[A-Z0-9/-]*)",
-        r"\bInvoice\s*#\s*([A-Z0-9][A-Z0-9/-]*\d[A-Z0-9/-]*)",
+        r"\bInv\s*(?:No\.?|#)\s*[:#-]?\s*([A-Z0-9][A-Z0-9/-]*\d[A-Z0-9/-]*)",
+        r"\bBill\s*(?:No\.?|Number|#)\s*[:#-]?\s*([A-Z0-9][A-Z0-9/-]*\d[A-Z0-9/-]*)",
     ]
 
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip(" .|")
+    for line in lines:
+        for pattern in patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
 
-    # Support the known OZONE TECH invoice format.
-    match = re.search(r"\b(\d{2}/\d{2}-\d{2}/\d{4,})\b", text)
+            if match:
+                return match.group(1).strip(" .|:-")
+
+    # Support known OZONE TECH invoice format.
+    match = re.search(
+        r"\b(\d{2}/\d{2}-\d{2}/\d{4,})\b",
+        text
+    )
+
     if match:
         return match.group(1)
 
     return None
 
 
-def extract_date(text):
-    """Extract a date in common numeric or written formats."""
-    patterns = [
-        r"\b\d{1,2}[-/.]\d{1,2}[-/.]\d{4}\b",
-        r"\b\d{4}[-/.]\d{2}[-/.]\d{2}\b",
-        r"\b\d{1,2}[- ]+[A-Za-z]{3,9}[- ,]+\d{2,4}\b",
-        r"\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}\b",
+# ==================================================
+# 3. DATE EXTRACTION
+# ==================================================
+
+DATE_PATTERNS = [
+    # 08-11-2026, 08/11/2026, 08.11.2026
+    r"\b\d{1,2}[-/.]\d{1,2}[-/.]\d{4}\b",
+
+    # 2026-11-08, 2026/11/08
+    r"\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b",
+
+    # 08-Nov-2026, 08 November 2026
+    r"\b\d{1,2}[- ]+[A-Za-z]{3,9}[- ,]+\d{2,4}\b",
+
+    # November 08, 2026
+    r"\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}\b",
+]
+
+
+def is_valid_date(date_string):
+    """Check whether a detected date is a real calendar date."""
+
+    formats = [
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%d.%m.%Y",
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+        "%Y.%m.%d",
+        "%d-%b-%Y",
+        "%d %b %Y",
+        "%d-%B-%Y",
+        "%d %B %Y",
+        "%B %d, %Y",
+        "%B %d %Y",
+        "%d-%m-%y",
+        "%d/%m/%y",
     ]
 
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(0).strip()
+    for fmt in formats:
+        try:
+            datetime.strptime(date_string.strip(), fmt)
+            return True
+        except ValueError:
+            continue
+
+    return False
+
+
+def extract_date(text):
+    """
+    Extract invoice dates.
+
+    Prioritizes explicitly labelled dates and prevents
+    invoice numbers from being treated as dates.
+    """
+
+    lines = normalize_text(text).splitlines()
+
+    invoice_number = extract_invoice_number(text)
+
+    date_label_pattern = re.compile(
+        r"\b(?:invoice\s+date|date\s+of\s+issue|"
+        r"issue\s+date|bill\s+date|dated|date)\b",
+        re.IGNORECASE
+    )
+
+    def find_date(value):
+        for pattern in DATE_PATTERNS:
+            for match in re.finditer(pattern, value, re.IGNORECASE):
+                candidate = match.group(0).strip(" .,:;")
+
+                # Never accept the invoice number as a date.
+                if invoice_number and candidate.lower() == invoice_number.lower():
+                    continue
+
+                if is_valid_date(candidate):
+                    return candidate
+
+        return None
+
+    # First priority: explicitly labelled date lines.
+    for index, line in enumerate(lines):
+
+        label_match = date_label_pattern.search(line)
+
+        if not label_match:
+            continue
+
+        # Search after the date label.
+        remainder = line[label_match.end():]
+
+        candidate = find_date(remainder)
+
+        if candidate:
+            return candidate
+
+        # OCR may put the date on the next line.
+        if index + 1 < len(lines):
+            candidate = find_date(lines[index + 1])
+
+            if candidate:
+                return candidate
+
+    # Second priority: search remaining lines.
+    for line in lines:
+
+        candidate = find_date(line)
+
+        if candidate:
+            return candidate
 
     return None
 
 
+# ==================================================
+# 4. TOTAL AMOUNT EXTRACTION
+# ==================================================
+
 def extract_total(text):
-    """Extract the invoice total, including amounts without decimals."""
+    """
+    Extract the final payable invoice amount.
+
+    Supports:
+    - GRAND TOTAL ₹18,880.00
+    - GRAND TOTAL: 18880
+    - Amount Payable: Rs. 18,880
+    - Total Amount: 18880.00
+    - Labels and amounts on separate OCR lines.
+    """
+
     lines = normalize_text(text).splitlines()
 
     priority_labels = [
         r"\bGrand\s+Total\b",
+        r"\bTotal\s+Payable\b",
+        r"\bAmount\s+Payable\b",
+        r"\bNet\s+Payable\b",
+        r"\bAmount\s+Due\b",
         r"\bInvoice\s+Total\b",
         r"\bTotal\s+Amount\b",
-        r"\bAmount\s+Payable\b",
         r"\bAmount\s+Chargeable\b",
-        r"\bNet\s+Payable\b",
+        r"\bFinal\s+Amount\b",
         r"\bTotal\b",
     ]
 
-    # Supports 69030, 69,030, 69030.00 and 69,030.00.
-    amount_pattern = r"(?<![A-Za-z0-9/])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?!\d)"
+    # Supports Indian currency and international formats.
+    amount_pattern = re.compile(
+        r"(?<![A-Za-z0-9/])"
+        r"(?:₹|Rs\.?|INR)?\s*"
+        r"((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)"
+        r"(?!\d)",
+        re.IGNORECASE
+    )
 
+    # Labels that should never be treated as final totals.
+    excluded_labels = re.compile(
+        r"\b(subtotal|taxable\s+value|discount|"
+        r"cgst|sgst|igst|tax\s+amount|round\s+off)\b",
+        re.IGNORECASE
+    )
+
+    def extract_amount_from_line(line):
+        matches = amount_pattern.findall(line)
+
+        amounts = []
+
+        for value in matches:
+            try:
+                number = float(value.replace(",", ""))
+
+                if number > 0:
+                    amounts.append(number)
+
+            except ValueError:
+                continue
+
+        return amounts
+
+    # Process labels in priority order.
     for label in priority_labels:
-        for line in lines:
+
+        for index, line in enumerate(lines):
+
             match = re.search(label, line, re.IGNORECASE)
 
             if not match:
                 continue
 
-            # Look only after the matching total label.
+            # Avoid selecting subtotal or tax-related rows.
+            if excluded_labels.search(line[:match.start()]):
+                continue
+
+            # Read amounts after the matching label.
             remainder = line[match.end():]
-            amounts = re.findall(amount_pattern, remainder)
 
-            if not amounts:
-                continue
+            amounts = extract_amount_from_line(remainder)
 
-            try:
-                value = float(amounts[-1].replace(",", ""))
-            except ValueError:
-                continue
+            if amounts:
+                return amounts[-1]
 
-            if value > 0:
-                return value
+            # OCR sometimes places the amount on the next line.
+            for next_index in range(index + 1, min(index + 3, len(lines))):
+
+                next_line = lines[next_index]
+
+                if excluded_labels.search(next_line):
+                    continue
+
+                # Do not accidentally read another summary label.
+                if re.search(
+                    r"\b(subtotal|grand\s+total|invoice\s+total|"
+                    r"total\s+amount|amount\s+payable|"
+                    r"net\s+payable|taxable\s+value)\b",
+                    next_line,
+                    re.IGNORECASE
+                ):
+                    break
+
+                amounts = extract_amount_from_line(next_line)
+
+                if amounts:
+                    return amounts[-1]
 
     return None
 
 
+# ==================================================
+# 5. VENDOR EXTRACTION
+# ==================================================
+
 def extract_vendor(text):
-    """Extract the vendor name from the beginning of the invoice."""
+    """Extract vendor name from the beginning of an invoice."""
+
     lines = normalize_text(text).splitlines()
 
     ignored_prefixes = re.compile(
         r"^(tax invoice|invoice|bill|receipt|shop no|opposite|"
         r"gstin|state name|dated|date|mode/terms|reference no|"
-        r"invoice no|invoice number|phone|email|address)\b",
-        re.IGNORECASE,
+        r"invoice no|invoice number|phone|email|address|"
+        r"customer|buyer|ship to|bill to)\b",
+        re.IGNORECASE
     )
 
-    for line in lines[:12]:
+    for line in lines[:15]:
+
         if not line:
             continue
 
@@ -107,51 +312,53 @@ def extract_vendor(text):
         match = re.search(
             r"^(.+?)\s+Invoice\s+(?:No\.?|Number)\b",
             line,
-            re.IGNORECASE,
+            re.IGNORECASE
         )
 
         if match:
             vendor = match.group(1).strip(" :-|")
+
             if vendor:
                 return vendor
 
         if ignored_prefixes.search(line):
             continue
 
-        # Accept both uppercase and mixed-case company names.
-        if (
-            re.fullmatch(r"[A-Za-z][A-Za-z0-9&.,'() -]{2,}", line)
-            and re.search(r"[A-Za-z]", line)
-        ):
-            # Avoid treating common address lines as vendors.
+        if re.fullmatch(r"[A-Za-z][A-Za-z0-9&.,'() -]{2,}", line):
+
             if re.search(
                 r"\b(Jaipur|Rajasthan|India|302001|302021)\b",
                 line,
-                re.IGNORECASE,
+                re.IGNORECASE
             ):
                 continue
 
-            # Ignore lines that are clearly not company names.
             if re.search(
                 r"\b(subtotal|grand total|amount|total|quantity|"
-                r"description|date|gst|tax)\b",
+                r"description|date|gst|tax|invoice)\b",
                 line,
-                re.IGNORECASE,
+                re.IGNORECASE
             ):
                 continue
 
             return line.strip()
 
-    # Preserve support for the known OZONE TECH invoice.
+    # Preserve known invoice support.
     if re.search(r"\bOZONE\s+TECH\b", text, re.IGNORECASE):
         return "OZONE TECH"
 
     return None
 
 
+# ==================================================
+# 6. ITEM EXTRACTION
+# ==================================================
+
 def extract_items(text):
-    """Extract product descriptions from common invoice table formats."""
+    """Extract product descriptions from invoice tables."""
+
     items = []
+
     lines = normalize_text(text).splitlines()
 
     skip_pattern = re.compile(
@@ -160,41 +367,45 @@ def extract_items(text):
         r"total value|total amount|amount payable|net payable|"
         r"tax amount|round off|cgst|sgst|igst|gstin|gst|"
         r"invoice no|invoice number|invoice date|due date|"
-        r"payment details|"
-        r"subtotal|grand total|amount chargeable|invoice total|"
-        r"total value|tax amount|round off|cgst|sgst|igst|gst|"
-        r"payment method|account name|reference|bank details|"
-        r"bill to|ship to|email|phone|tax invoice|description|total|"
-        r"quantity|qty|unit price|hsn|sac|thank you"
+        r"payment details|payment method|account name|reference|"
+        r"bank details|bill to|ship to|email|phone|tax invoice|"
+        r"description|total|quantity|qty|unit price|hsn|sac|"
+        r"thank you|discount|taxable value|date of issue"
         r")\b",
-        re.IGNORECASE,
+        re.IGNORECASE
     )
 
-    amount_pattern = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?"
+    amount_pattern = (
+        r"(?:\d{1,3}(?:,\d{3})+|\d+)"
+        r"(?:\.\d{1,2})?"
+    )
 
     for line in lines:
+
         line = line.strip()
 
         if not line or skip_pattern.search(line):
             continue
 
-        # Skip common address lines.
+        # Skip address lines.
         if re.search(
             r"\b(MI Road|Jaipur|Rajasthan|302001|302021)\b",
             line,
-            re.IGNORECASE,
+            re.IGNORECASE
         ):
             continue
 
-        # Format 1: description followed by an HSN/SAC code.
+        # Format 1: Description followed by HSN/SAC.
         hsn_match = re.search(r"\b\d{6,8}\b", line)
 
         if hsn_match:
+
             description = line[:hsn_match.start()].strip(" |:-")
+
             description = re.sub(
                 r"^\d+\s*[|.)-]?\s*",
                 "",
-                description,
+                description
             ).strip()
 
             if (
@@ -205,20 +416,14 @@ def extract_items(text):
 
             continue
 
-        # Format 2:
-        # Laptop 1 55,000 55,000
-        # Wireless Mouse 1 1,500 1,500
-        # Keyboard 1 2,000 2,000
-        #
-        # Also supports decimal prices such as:
-        # A4 copier paper 20 280.00 5,600.00
-
+        # Format 2: Description + quantity + rate + amount.
         row_match = re.match(
             rf"^(.+?)\s+(\d+)\s+({amount_pattern})\s+({amount_pattern})$",
-            line,
+            line
         )
 
         if row_match:
+
             description = row_match.group(1).strip(" |:-")
 
             if (
@@ -229,17 +434,16 @@ def extract_items(text):
 
             continue
 
-        # Format 3: a product description followed by a final amount.
-        # Example: Laptop 55,000
+        # Format 3: Description followed by amount.
         amount_match = re.match(
             rf"^(.+?)\s+({amount_pattern})$",
-            line,
+            line
         )
 
         if amount_match:
+
             description = amount_match.group(1).strip(" |:-")
 
-            # Avoid adding headings or summary rows as products.
             if (
                 len(description) >= 3
                 and re.search(r"[A-Za-z]", description)
@@ -247,15 +451,17 @@ def extract_items(text):
             ):
                 items.append(description)
 
-    # Preserve support for known ASUS invoice products.
+    # Preserve known ASUS invoice products.
     known_products = [
         "ASUS GT-TP3402VAO",
         "AP1600 ASUS BACKPACK",
-        "CW101-KB+MS/BK",
+        "CW101-KB+MS/BK"
     ]
 
     for product in known_products:
+
         if re.search(re.escape(product), text, re.IGNORECASE):
+
             if not any(
                 product.lower() in item.lower()
                 for item in items
@@ -267,6 +473,7 @@ def extract_items(text):
     seen = set()
 
     for item in items:
+
         key = item.lower()
 
         if key not in seen:
@@ -276,8 +483,13 @@ def extract_items(text):
     return unique_items
 
 
+# ==================================================
+# 7. VALIDATION
+# ==================================================
+
 def validate_invoice_data(data):
-    """Validate the extracted invoice fields."""
+    """Validate extracted invoice fields."""
+
     errors = []
 
     if not data["vendor"]:
@@ -291,6 +503,7 @@ def validate_invoice_data(data):
 
     if data["total"] is None:
         errors.append("Total not found")
+
     elif data["total"] <= 0:
         errors.append("Total must be greater than zero")
 
@@ -300,16 +513,32 @@ def validate_invoice_data(data):
     return errors
 
 
+# ==================================================
+# 8. MAIN EXTRACTION FUNCTION
+# ==================================================
+
 def extract_invoice_data(text):
-    """Extract invoice fields and return validation errors."""
+    """Extract all invoice fields and return validation errors."""
+
+    normalized_text = normalize_text(text)
+
     data = {
-        "vendor": extract_vendor(text),
-        "invoiceNumber": extract_invoice_number(text),
-        "date": extract_date(text),
-        "total": extract_total(text),
-        "items": extract_items(text),
+        "vendor": extract_vendor(normalized_text),
+        "invoiceNumber": extract_invoice_number(normalized_text),
+        "date": extract_date(normalized_text),
+        "total": extract_total(normalized_text),
+        "items": extract_items(normalized_text)
     }
 
     data["validationErrors"] = validate_invoice_data(data)
+
+    print("\n========== EXTRACTION RESULTS ==========")
+    print("Vendor:", data["vendor"])
+    print("Invoice Number:", data["invoiceNumber"])
+    print("Date:", data["date"])
+    print("Total:", data["total"])
+    print("Items:", data["items"])
+    print("Validation Errors:", data["validationErrors"])
+    print("========================================\n")
 
     return data
